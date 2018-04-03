@@ -1,0 +1,42 @@
+version: '3'
+
+services:
+
+# furst.io
+
+  furst:
+    image: nginx:latest
+    container_name: furst.io
+    volumes:
+      - ${DOCKER}/websites/furst.io:/usr/share/nginx/html:ro
+    labels:
+      - traefik.enable=true
+      - traefik.backend=furst
+      - 'traefik.frontend.rule=Host:${DOMAIN}'
+      - traefik.docker.network=traefik
+      - traefik.port=80
+    networks:
+      - traefik
+    restart: on-failure
+
+# highpulp.co
+
+  highpulp:
+    image: nginx:latest
+    container_name: highpulp.co
+    volumes:
+      - ${DOCKER}/websites/highpulp.co:/usr/share/nginx/html:ro
+    labels:
+      - traefik.enable=true
+      - traefik.backend=highpulp
+      - traefik.domain=highpulp.co
+      - 'traefik.frontend.rule=Host:highpulp.co'
+      - traefik.docker.network=traefik
+      - traefik.port=80
+    networks:
+      - traefik
+    restart: on-failure
+
+networks:
+  traefik:
+    external: true
