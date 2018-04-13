@@ -37,6 +37,109 @@ services:
       - traefik
     restart: on-failure
 
+# MariaDB
+
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    volumes:
+      - $NAS/.mariadb/data:/var/lib/mysql
+      - $NAS/.mariadb/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: mysqladmin ping -h localhost || exit 1
+      interval: 60s
+      timeout: 10s
+      retries: 5
+    environment:
+      - MYSQL_ROOT_PASSWORD=${SQL_ROOT}
+      - TZ=${TZ}
+    networks:
+      - database
+    ports:
+      - 3306:3306
+    restart: on-failure
+
+  adminer:
+    image: adminer
+    restart: on-failure
+    ports:
+      - 8181:8080
+    networks:
+      - database
+
+# WordPress
+
+  wordpress:
+    image: bitnami/wordpress:latest
+    container_name: wordpress
+    volumes:
+      - $NAS/.wordpress:/bitnami
+    environment:
+      - WORDPRESS_DATABASE_USER=wordpress
+      - WORDPRESS_DATABASE_NAME=wordpress
+      - WORDPRESS_DATABASE_PASSWORD=${SQL_PASSWORD}
+    links:
+      - mariadb
+    labels:
+      - traefik.enable=true
+      - traefik.backend=wordpress
+      - 'traefik.frontend.rule=Host:blog.furst.io'
+      - traefik.docker.network=traefik
+      - traefik.port=80
+    networks:
+      - database
+      - traefik
+
+# Bookstack
+
+  bookstack:
+    image: solidnerd/bookstack
+    container_name: bookstack
+    depends_on:
+      - mariadb
+    environment:
+      - DB_HOST=mariadb:3306
+      - DB_DATABASE=bookstack
+      - DB_USERNAME=bookstack
+      - DB_PASSWORD=${SQL_PASSWORD}
+    volumes:
+      - $NAS/.bookstack/uploads:/var/www/bookstack/public/uploads
+      - $NAS/.bookstack/storage-uploads:/var/www/bookstack/public/storage-uploads
+    labels:
+      - traefik.enable=true
+      - traefik.backend=bookstack
+      - 'traefik.frontend.rule=Host:bookstack.${DOMAIN}'
+      - traefik.docker.network=traefik
+      - traefik.port=80
+    networks:
+      - traefik
+      - database
+    restart: always
+
+# Nextcloud:
+
+  nextcloud:
+    image: nextcloud:latest
+    container_name: nextcloud
+    hostname: nextcloud
+    volumes:
+      - $NAS/.nextcloud/data:/var/www/html/data
+    labels:
+      - traefik.enable=true
+      - traefik.backend=nextcloud
+      - 'traefik.frontend.rule=Host:nextcloud.${DOMAIN}'
+      - traefik.docker.network=traefik
+      - traefik.port=80
+    networks:
+      - database
+      - traefik
+    depends_on:
+      - mariadb
+    restart: on-failure
+
+
 networks:
   traefik:
+    external: true
+  database:
     external: true
