@@ -12,7 +12,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.backend=furst
-      - 'traefik.frontend.rule=Host:${DOMAIN}'
+      - 'traefik.frontend.rule=Host:${DOMAIN}, www.${DOMAIN}'
       - traefik.docker.network=traefik
       - traefik.port=80
     networks:
@@ -144,6 +144,53 @@ services:
       - mariadb
     restart: on-failure
 
+# Chevereto
+
+  chevereto:
+    container_name: chevereto
+    image: nmtan/chevereto
+    environment:
+      - GUID=${PGID}
+      - UUID=${PUID}
+      - CHEVERETO_DB_HOST=mariadb
+      - CHEVERETO_DB_USERNAME=chevereto
+      - CHEVERETO_DB_PASSWORD=${SQL_PASSWORD}
+      - CHEVERETO_DB_NAME=chevereto
+      - CHEVERETO_DB_PREFIX=chv_
+    volumes:
+      - $NAS/.chevereto/images:/var/www/html/images:rw
+    labels:
+      - traefik.enable=true
+      - traefik.backend=chevereto
+      - 'traefik.frontend.rule=Host:i.${DOMAIN}'
+      - traefik.docker.network=traefik
+      - traefik.port=80
+    networks:
+      - database
+      - traefik
+    depends_on:
+      - mariadb
+    restart: unless-stopped
+
+# GitLab
+
+  gitlab:
+    container_name: gitlab
+    image: gitlab/gitlab-ce
+    volumes:
+      - $NAS/.gitlab/config:/etc/config
+      - $NAS/.gitlab/logs:/var/log/gitlab
+      - $NAS/.gitlab/data:/var/opt/gitlab
+    labels:
+      - traefik.enable=true
+      - traefik.backend=gitlab
+      - 'traefik.frontend.rule=Host:git.${DOMAIN}'
+      - traefik.docker.network=traefik
+      - traefik.port=80
+    networks:
+      - default
+      - traefik
+    restart: unless-stopped
 
 networks:
   traefik:
